@@ -1,6 +1,31 @@
 <#
+.SYNOPSIS
+Simple workaround wrapper function to list and connect wifi-networks using netsh.exe
+
 .DESCRIPTION
-	Simple workaround wrapper function to list and connect wifi-networks using netsh.exe
+- Wrapper based on netsh.exe Windows utility.
+- Provide feature to list and connect wifi-networks through wifi-name. Example: wifi connect "wifi-name"
+- Aliases made things very simple and fast (at least for me).
+
+.PARAMETER Action
+[l]ist : List wifi networks. (DEFAULT)
+[c]onnect : Enable connection to available network.
+[e]nd or [d]own : Disconnect network connection.
+w : Prompt user a list of available network and connection choice.
+
+.PARAMETER WifiName
+Your wifi-name goes here
+
+.EXAMPLE
+NOTE: Example are shown using aliases for simpilicity
+wifi OR w				# List networks
+wifi list OR w l			# List networks
+wifi connect "wifi-name"		# Connects to specified wifi-name
+w c wifi-name			# Connects to specified wifi-name
+w d OR w e				# Disconnect wifi connection
+w w OR ww				# Prompt user to connect to a network
+
+
 #>
 Function Initiate-WifiMan {
 	param(
@@ -10,42 +35,60 @@ Function Initiate-WifiMan {
 
 	Function Prompt-Connection {
 
-		# NOTE: This code works for me right now but can have some more validations and corrections.
-
-		# TODO: First you should check whether the interface is [UP] or [DOWN] then only proceed & give graceful message.
-		# TODO: You can even make a funcion to enable and disable the interface.
-		# FIX: What if you are already connected to a network?
-
-		$WifiData = @{}
-	
-		# Creating hash-table of available wifi(s)
+		# TODO: Give message if you are already connected to a wifi-network.
+		
+		# If NetAdapter Off - End Script
 		try {
-			for ($i = 1; $i -le 10; $i=$i+2 ) {
-				$WifiName = $(netsh wlan show networks | findstr.exe SSID).Split(':')[$i].Trim().ToString()
-				$WifiData[$i] = $WifiName
+			$NetAdapterRadioSoftStatus = ( netsh wlan show interface | findstr.exe Software ).Trim().Split(' ')[1].ToString()
+			if($NetAdapterRadioSoftStatus -eq "Off"){
+				Write-Host "Wi-Fi NetAdapter is Disconnected!" -ForegroundColor Red
+				return $null
 			}
-
 		} catch {
-			#Write-Error "Details : $_"
-			#return # I think using return will throw you out of the overall script block, so for not it's better to catch nothing
+			# Do nothing here! ; Maybe i can use -ErrorAction SilentlyContinue or -ErrorAction Continue for error instead of try-catch if possible  
+		}
+
+		$WifiList = @()
+		try {
+			$Index = 1
+			$WifiCollection = netsh wlan show networks | findstr.exe SSID
+			
+			foreach($Wifi in $WifiCollection) {
+				$WifiName = $Wifi.Split(':').Trim()[1].ToString()
+				$WifiList += [PSCustomObject]@{
+					Number = $Index
+					"Wifi-Name" = $WifiName
+				}
+				$Index++
+				
+			}
+		} catch {
+			Write-Error "Error fetching Wi-Fi networks: $_"
+			return $null
 		}
 	
-		if ($WifiData.Count -ne 0) {
-			# Prompting user to select a choice and conncet to that network
-			try {
-				# TODO: Rather than just printing the hast-table you can present it in a more proper manner and numbering( with logic )
-				Write-Host $WifiData
-				# TODO: You can add validation for $GetNum, whether it's a number of something else
-				[Int]$GetNum = Read-Host "Enter You Choice: "
-				netsh wlan connect $WifiData.$GetNum
-			} catch {
-				Write-Error "Details : $_"
+		if ($WifiList.Count -ne 0) {
+			# Prompting user to select a choice and connect to that network
+			Write-Host "`nAvailable Wi-Fi Networks:"
+			$WifiList | Format-Table -AutoSize | Out-Host
+			
+
+			while($true) {
+				try {
+					[Int]$ChoiceNum = Read-Host "Enter Your Choice (Number)"
+					if(!$ChoiceNum){throw}
+					if($ChoiceNum -gt $WifiList.Count -or $ChoiceNum -le 0){throw}
+					$WifiSelectedObject = $WifiList | Where-Object {$_.Number -eq $ChoiceNum}
+					netsh wlan connect $WifiSelectedObject."Wifi-Name"
+					break
+				} catch {
+					Write-Host "Enter a valid number! or use 'ctrl + c' to exit" -ForegroundColor Red
+				}
 			}
 		} else {
     			Write-Host "No available Wi-Fi network" -ForegroundColor Red
+			return $null
 		}
-
-	
 	}
 
 	switch ($Action) {
@@ -70,13 +113,9 @@ Function Initiate-WifiMan {
 			Write-Error "There was some problem with WifiMan!"
 		}
 	}
-
 }
 Set-Alias wifi Initiate-WifiMan
 Set-Alias w Initiate-WifiMan
-
-#Function Connect-WifiSpecified($spe) {  wifi connect $spe }
-#Set-Alias wc Connect-WifiSpecified
 
 Function Prompt-WifiConnection {
 	Initiate-WifiMan w
