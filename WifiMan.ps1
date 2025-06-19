@@ -123,7 +123,7 @@ Function Prompt-WifiConnection {
 Set-Alias ww Prompt-WifiConnection
 
 # Check Internet Connection Using Test-NetConncetion cmdlet of PowerShell
-Function Check-NetworkConnection {
+Function Check-InternetConnection {
 	$ConnectionName = &{try {(netsh wlan  show interface | findstr.exe SSID)[0].Split(":")[1].Trim()} catch { Write-Output $null }}
 
 	if (Test-NetConnection | Select-Object -ExpandProperty PingSucceeded) {
@@ -134,13 +134,14 @@ Function Check-NetworkConnection {
 		Write-Host "You have no Internet connection" -ForegroundColor Red
 	}
 }
-Set-Alias cnc Check-NetworkConnection
+Set-Alias cic Check-InternetConnection
 
-# Check if connected to any wifi network (doesn't check the internet connection, for that use `cnc`)
+# Check if connected to any wifi network (doesn't check the internet connection, for that use `cic`)
 Function Check-WifiConnection {
 	try { 
 		$wifiname = (netsh wlan  show interface | findstr.exe SSID)[0].Split(":")[1].Trim()
 		Write-Host "You are connected to `"$wifiname`"" -ForegroundColor Green
 	} catch { Write-Host "You are NOT connected to any Wifi Network" -ForegroundColor Red }
 }
-Set-Alias cwc Check-WifiConnection
+#Set-Alias cwc Check-WifiConnection
+Set-Alias cnc Check-WifiConnecton
