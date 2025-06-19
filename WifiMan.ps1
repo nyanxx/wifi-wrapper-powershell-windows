@@ -144,4 +144,4 @@ Function Check-WifiConnection {
 	} catch { Write-Host "You are NOT connected to any Wifi Network" -ForegroundColor Red }
 }
 #Set-Alias cwc Check-WifiConnection
-Set-Alias cnc Check-WifiConnecton
+Set-Alias cnc Check-WifiConnection
